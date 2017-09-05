@@ -47,4 +47,3 @@ public class TagDao {
     }
 }
 
-//reciept records joined to tags table
