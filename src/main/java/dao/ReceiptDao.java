@@ -35,3 +35,6 @@ public class ReceiptDao {
         return dsl.selectFrom(RECEIPTS).fetch();
     }
 }
+
+
+//Need to impliment a check to make sure recipe exists when trying to tag.
