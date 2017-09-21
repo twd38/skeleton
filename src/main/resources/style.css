@@ -1,0 +1,31 @@
+/* Styles go here */
+
+#button {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    
+    float:right;
+}
+
+
+#my_receipts
+{
+  display: inline-block;
+    float:left;
+}
+#spanStage
+{
+    font-weight:bold;
+    vertical-align:middle;    
+}
+
+#add_receipts, #spanStage, #add_button{
+      width:33%;
+       display:inline-block;
+     }
