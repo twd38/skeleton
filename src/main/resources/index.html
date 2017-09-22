@@ -2,193 +2,305 @@
 <html>
 
 <head>
+    <link rel="stylesheet" href="style.css">
+
     <script data-require="jquery@*" data-semver="3.1.1" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
     <style>
-        #container {border: 1px solid brown;}
-        H1 {float: left;}
-        .button{
-            background-color:#55A;
-            border: 1px solid #229;
-            width: 100px;
-            float: right;
-            font-size: 2em;
-            color: white;
-            text-align: center;
-        }
-        #receiptList {
-            border: 1px solid green;
-            clear: both;
-        }
-        .receipt {
-            background-color: #eee;
-            margin-bottom: 5px;
-        }
-        .add-tag{
-          background-color: orange;
-        }
-        #error_div{
-          display: none;
-        }
+
     </style>
 
     <script>
-        // JQuery does not
-        // execute until the page has loaded
-        const api = "";
+            $(
+                function(){
+                    const api = "";
+                    //api_data is array of recipts with nested tags.
+                    var api_data=[];
+                    
+                    function refresh_data(){
+                        //get receipt data
+                        
+                        api_data=[];
 
-        $(function(){
-             // <- do not need a root api URL if this page is served directly by the API
-            $.getJSON(api+"/receipts", function(data){
-                window.receipts = data;
-                refresh();
-            });
-            connect_my_elements();
-            $('body').on('click','.add-tag',function(){
-              if($(this).parent().siblings('.tag_input').length === 0){
-                  $(`<input class="tag_input" type="text" placeholder="enter new tag" name="tag_input">`).appendTo($(this).closest(".receipt"));
-              }
-            });
-            $('body').on('click','.tagValue',function(){
-                var _this = $(this);
-                var str_tag_to_rem = $(this).text();
-                var receipt_id = $(this).closest(".receipt").attr('id');
-                $.ajax({
-                    url: api+"/tags/"+str_tag_to_rem,
-                    type: 'PUT',
-                    data: JSON.stringify(receipt_id),
-                    headers:{"Content-Type": "application/json"},
-                    success: function(){
-                        _this.remove();
-                    },
-                    error: function (resp_obj, status) {
-                        console.log("Error | PUT | tag="+str_tag_to_rem+" to "+receipt_id);
+                        //get receipt data
+                        get_receipts().done(
+                            function(receipts){
+                                console.log('get_receipts promise');
+
+                                var temp_receipts=initialize_receipts(receipts);
+                                
+                                // console.log(temp_receipts);
+
+                                //get tag data (as promise)
+                                get_tags().done(
+                                    function(tags){
+                                        console.log('get tags promise');
+                                        //console.log(tags);
+
+                                        //merge tags into receipts
+                                        for(var i =0; i<tags.length; i++)
+                                        {
+                                            var tag=tags[i];
+                                            var receipt_id=tag["receiptId"];
+                                            //console.log(temp_receipts);
+                                            if(receipt_id in temp_receipts)
+                                            {
+                                                var receipt=temp_receipts[receipt_id];
+                                                receipt["tags"].push(tag["tag"]);
+                                            }
+                                            else{
+                                                console.log("bastard tag")
+                                            }
+                                        }
+                                        for(var receipt_id in temp_receipts)
+                                        {
+                                            api_data.push(temp_receipts[receipt_id]);
+                                        }
+                                        
+                                        // console.log(api_data);
+                                        update_receipt_table(api_data);
+                                    }
+                                )
+                            }
+
+                        )
                     }
-                });
-            });
-            $('body').on('keyup','.tag_input',function(element) {
-                if (element.keyCode===13) {
-                    id_of_receipt = $(this).parent().attr('id');
-                    str_tag_add = $(this).val();
-                    $.ajax({
-                        url: api+"/tags/"+str_tag_add,
-                        type: 'PUT',
-                        data: JSON.stringify(id_of_receipt),
-                        headers: {"Content-Type": "application/json"},
-                        success: function(){
-                            $('#'+id_of_receipt).children(".tagsList").append('<div class="tags tagValue">'+str_tag_add+'</div>');
-                            $('.tag_input').remove();
-                        },
-                        error: function (resp_obj, status) {
-                            console.log("Error | PUT "+str_tag_add+" to "+id_of_receipt);
+                    function make_receipt_html(receipt) {
+                        return `
+                            <div class="div_table_row receipt">
+                                <div class="merchant table_cell">${receipt["merchantName"]}</div>
+                                <div class="amount table_cell">${receipt["value"]}</div>
+                                <div class="tags table_cell"></div>
+                            </div>`;
+                    }
+                    function update_receipt_table(receipts){
+                        // console.log(receipts);  
+                        console.log('refreshing html table')
+                        //given array of receipts write them to html table
+                        var receipt_list_div=$("#receiptList");
+                        //clear out html table
+
+                        //loops over every receipts and inject into html
+                        for(i=0; i<receipts.length; i++)
+                        {
+                            // make receipt obj
+                            const receipt=receipts[i];
+                            const receipt_id=receipt["id"];
+                            // console.log(receipt);
+
+                            const receipt_html = make_receipt_html(receipt);
+
+                            // get receipt div
+                            const receipt_div=$(receipt_html).appendTo(receipt_list_div);
+
+                            // get tags div on receipt div
+                            const tags_div=$(".tags", receipt_div);
+
+                            // create add_tag div
+                            const add_tag_div=$(`<div class="button add-tag">add</div>`)
+                                .appendTo(tags_div)
+                                .on("click", function(){
+                                    //add the tag input element with key-down events
+                                    const input_tag_div=$(`<input class="tag_input"></input>`).appendTo(tags_div);
+                                    input_tag_div.focus();
+                                    input_tag_div.on("keydown",function(key){
+                                        if(key.keyCode==27){
+                                            input_tag_div.remove();
+                                        }
+                                        else if(key.keyCode==13){
+                                            const tag_value = input_tag_div[0].value;
+                                            $.ajax({
+                                                type: "PUT",
+                                                url: api+"/tags/"+tag_value,
+                                                data: receipt_id.toString(),
+                                                contentType: "application/json;",
+                                                dataType: "json"
+                                            }).done(function(){
+                                                $(make_tag_html(tag_value)).appendTo(tags_div);
+                                                input_tag_div.remove();
+                                            })
+                                            
+                                        }
+                                    })
+                                })
+
+                            const tags=receipt["tags"];
+
+                            for(j=0; j<tags.length; j++)
+                            {
+                                var tag_value = tags[j];
+                                var single_tag_div = ($(make_tag_html(tag_value)).appendTo(tags_div));
+                                single_tag_div.on("click", function () {
+                                    $.ajax({
+                                        type: "PUT",
+                                        url: api+"/tags/"+tag_value,
+                                        data: receipt_id.toString(),
+                                        contentType: "application/json;",
+                                        dataType: "json"
+                                    }).done(function(){
+                                        console.log("bye bye tag");
+                                        single_tag_div.remove();
+                                    })
+                                })
+                            }
+                            
+
                         }
-                    });
-                }
-            });
-        });
+                    }
+                    function make_tag_html(tag){
+                        return `<div class="tagValue button">${tag}</div>`;
+                    }
 
-        function refresh() {
-            $('#receiptList').html('');
-            for (var i = 0; i < window.receipts.length; i++) {
-                var receipt = window.receipts[i];
-                var number_of_tags = receipt.tags.length;
-                var tags_list_html_string = "";
-                for(var t=0;t<number_of_tags;t++){
-                    tags_list_html_string=tags_list_html_string+('<div class="tags tagValue">'+receipt.tags[t]+'</div>')
-                }
-                $('<div id="'+receipt.id+'" class="receipt">\
-                    <div class="created">'+receipt.created+'</div>\
-                    <div class="merchant">'+receipt.merchant+'</div>\
-                    <div class="amount">'+receipt.amount+'</div>\
-                    <div class="tagsList">'+tags_list_html_string+'\
-                      <div class="add-tag">Add +</div>\
-                      </div>\
-                    </div>').appendTo($('#receiptList'));
-            }
-        }
-        function update_receipt_dom(receipt){
-            $("#receiptList").append(`<div class="receipt" id="${receipt.id}">\
-                                        <div class="created">Time to create</div>\
-                                        <div class="merchant">${receipt.merchant}</div>\
-                                        <div class="amount">${receipt.amount}</div>\
-                                        <div class="tagsList">\
-                                            <div class="add-tag">Add +</div>\
-                                        </div>\
-                                    </div>`);
-        }
-        function connect_my_elements(){
-            $('#add-receipt').on('click', function(){
-                $("#receipt-entry").toggle();
-            });
-            function save_data_to_DB(receipt_data){
-                $.ajax({
-                    type: "POST",
-                    url: api+"/receipts",
-                    data: JSON.stringify(receipt_data),
-                    contentType: "application/json; charset=utf-8",
-                    crossDomain: true,
-                    dataType: "json",
-                    success: function (data, status, resp_obj) {
-                        receipt_data.id = data;
-                        clear_text_field();
-                        update_receipt_dom(receipt_data);
-                        $("#receipt-entry").toggle();
-                    },
-                    error: function (resp_obj, status) {
-                        console.log(resp_obj);
+                    function initialize_receipts(receipts){
+                        //for each receipt add empty array of tags
+                        console.log('initialize_receipts');
+                        var temp_receipts={}
+                        for(var i=0; i<receipts.length; i++)
+                        {
+                            var receipt_id=receipts[i]["id"]
+                            temp_receipts[receipt_id]=receipts[i];
+                            if(!('tags' in temp_receipts[receipt_id])){
+                                temp_receipts[receipt_id]["tags"]=[];
+                            }
+                        }
+                        return temp_receipts
                     }
-                })
-            };
-            function clear_text_field(){
-                $("#receipt-entry").find( "input" ).val('');
-            }
-            function save_data_to_DB(receipt_data){
-                $.ajax({
-                    type: "POST",
-                    url: api+"/receipts",
-                    data: JSON.stringify(receipt_data),
-                    contentType: "application/json; charset=utf-8",
-                    crossDomain: true,
-                    dataType: "json",
-                    success: function (data, status, resp_obj) {
-                        receipt_data.id = data;
-                        update_receipt_dom(receipt_data);
-                        clear_text_field();
-                        $("#receipt-entry").toggle();
-                    },
-                    error: function (resp_obj, status) {
-                        console.log("Error | POST | "+resp_obj);
+                    function get_data(endpoint){
+                        //general get request from all endpoints
+                        return $.ajax(
+                            {
+                                type:"GET",
+                                url: api+endpoint,
+                                contentType:"application/json",
+                                dataType: "json"
+                            }
+                        )
                     }
-                })
-            };
-            $('body').on('click','#save-receipt',function(){
-                var data={};
-                var text_fields=$("#receipt-entry > input");
-                for (var i = 0; i < text_fields.length; ++i) {
-                    if (text_fields[i].name) {
-                        data[text_fields[i].name] = text_fields[i].value;
-                    }
-                }
-                save_data_to_DB(data);
-            });
-            $('body').on('click', '#cancel-receipt', function() {
-                clear_text_field();
-                $("#receipt-entry").toggle();
-            });
-        }
+                    function get_receipts(){
+                        //getting receipts from api
+                        return get_data("/receipts")
 
+                    }
+
+                    function get_tags(){
+                        //getting tags from api
+                        return get_data("/tags")
+                    }
+
+                    function setup_form() {
+                        // setup form onclick stuff
+
+                        $("#add-receipt").on("click", function() { $("#receipt-entry").show() })
+                        $("#save-receipt").on("click", function() { 
+                            add_receipt()
+                            $("#receipt-entry").hide() 
+                        })
+                        $("#cancel-receipt").on("click", function() { 
+                            $("#receipt-entry").hide() 
+                            clear_form()
+                        })
+                    }
+
+                    function clear_form() {
+                        $("#receipt-entry").find("#merchant")[0].value = "";
+                        $("#receipt-entry").find("#amount")[0].value = "";
+                    }
+
+                    function add_receipt() {
+                        // create receipt and add to form
+
+                        var merchant = $("#merchant", $("#receipt-entry"))[0].value;
+                        var value = $("#amount", $("#receipt-entry"))[0].value;
+
+                        $.ajax({
+                            type: "POST",
+                            url: api+"/receipts",
+                            data: JSON.stringify({"merchant": merchant, "amount": value}),
+                            contentType: "application/json",
+                            dataType: "json"
+                        }).done(function(receipt_id) {
+                            var receipt = {"merchantName": merchant, "value": value}
+                            var receipt_html = make_receipt_html(receipt);
+                            var receipt_list_div=$("#receiptList");
+                            var receipt_div=$(receipt_html).appendTo(receipt_list_div);
+                            // get tags div on receipt div
+                            const tags_div=$(".tags", receipt_div);
+                            const add_tag_div=$(`<div class="button add-tag">add</div>`)
+                                .appendTo(tags_div)
+                                .on("click", function(){
+                                    //add the tag input element with key-down events
+                                    const input_tag_div=$(`<input class="tag_input"></input>`).appendTo(tags_div);
+                                    input_tag_div.focus();
+                                    input_tag_div.on("keydown",function(key){
+                                        if(key.keyCode==27){
+                                            input_tag_div.remove();
+                                        }
+                                        else if(key.keyCode==13){
+                                            const tag_value = input_tag_div[0].value;
+                                            $.ajax({
+                                                type: "PUT",
+                                                url: api+"/tags/"+tag_value,
+                                                data: receipt_id.toString(),
+                                                contentType: "application/json;",
+                                                dataType: "json"
+                                            }).done(function(){
+                                                var single_tag_div = ($(make_tag_html(tag_value)).appendTo(tags_div));
+                                                single_tag_div.on("click", function () {
+                                                    $.ajax({
+                                                        type: "PUT",
+                                                        url: api+"/tags/"+tag_value,
+                                                        data: receipt_id.toString(),
+                                                        contentType: "application/json;",
+                                                        dataType: "json"
+                                                    }).done(function(){
+                                                        console.log("bye bye tag");
+                                                        single_tag_div.remove();
+                                                    })
+                                                })
+                                                input_tag_div.remove();
+                                            })
+                                            
+                                        }
+                                    })
+                                })
+                            clear_form()
+
+                        })
+                    }
+
+                    setup_form();
+                    refresh_data();
+
+
+                }
+            )
     </script>
 </head>
+
 <body>
-<DIV id="container">
-    <h1>My receipts</h1> <div class="button" id="add-receipt">+</div>
+<div id="container">
+    <h1>My receipts</h1> 
+    
+    <div class="button" id="add-receipt">+</div>
+
     <div id="receipt-entry" style="display:none;">
-        <div id="error_div">Error message = </div>
         <input id="merchant" type="text" placeholder="Enter merchant" name="merchant"><br/>
         <input id="amount" type="text" placeholder="Eneter amount" name="amount"><br/><br/>
         <div class="button" id="cancel-receipt">Cancel</div>
         <div class="button" id="save-receipt">Save</div>
     </div>
-    <div id="receiptList"></div>
-</DIV>
+
+
+    <div id="receiptList" class="div_table">
+        
+        <div class="receipt_header div_table_row">
+            <div class="table_cell">merchant</div>
+            <div class="table_cell">amount</div>
+            <div class="table_cell">tag</div>
+
+        </div>
+
+    </div>
+
+</div>
 </body>
 </html>

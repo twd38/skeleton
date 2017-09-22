@@ -1,31 +1,56 @@
 /* Styles go here */
 
-#button {
-    background-color: #4CAF50; /* Green */
-    border: none;
+
+
+.div_table {
+    display: table;
+}
+
+.div_table_row {
+    display: table-row;
+}
+
+.table_cell {
+    display: table-cell;
+    border: 1px solid #000000;
+    padding: 5px 5px;
+}
+
+.tagValue {
+    border: 1px solid #808080;
+    background-color: #D645E9;
+    padding: 1px 1px;
+}
+
+.add-tag {
+    border: 1px solid #808080;
+    background-color: #4CAF50;
+    padding: 1px 1px;
+}
+
+
+#container {border: 1px solid brown;}
+H1 {float: left;}
+.button{
+    background-color:#55A;
+    border: 1px solid #229;
+    width: 100px;
+    float: right;
+    font-size: 2em;
     color: white;
-    padding: 15px 32px;
     text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    
-    float:right;
 }
-
-
-#my_receipts
-{
-  display: inline-block;
-    float:left;
+#receiptList {
+    border: 1px solid green;
+    clear: both;
 }
-#spanStage
-{
-    font-weight:bold;
-    vertical-align:middle;    
+.receipt {
+    background-color: #eee;
+    margin-bottom: 5px;
 }
-
-#add_receipts, #spanStage, #add_button{
-      width:33%;
-       display:inline-block;
-     }
+.add-tag{
+  background-color: orange;
+}
+#error_div{
+  display: none;
+}
