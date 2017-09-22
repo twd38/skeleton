@@ -10,3 +10,4 @@
 
 # This is where intellij builds the project
 /out
+*.log
